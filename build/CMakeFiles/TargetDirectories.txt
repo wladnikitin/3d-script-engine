@@ -1,0 +1,3 @@
+D:/3d-script-engine/build/CMakeFiles/3d-script-engine.dir
+D:/3d-script-engine/build/CMakeFiles/ALL_BUILD.dir
+D:/3d-script-engine/build/CMakeFiles/ZERO_CHECK.dir

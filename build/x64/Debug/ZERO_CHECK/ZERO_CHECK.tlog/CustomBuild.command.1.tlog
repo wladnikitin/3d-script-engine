@@ -1,0 +1,10 @@
+^D:\3D-SCRIPT-ENGINE\BUILD\CMAKEFILES\4099CFA7DEAA8F7A819B406D50F4A3E8\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/3d-script-engine -BD:/3d-script-engine/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/3d-script-engine/build/3D-Script-Engine.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
