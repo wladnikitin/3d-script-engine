@@ -46,6 +46,8 @@ int main() {
     std::thread inputThread(&App::waitForLine, &app);
     app.setHWND(hwnd);         // или app.setLinuxDisplay(...)
     app.initGraphics();        // ✅ создать контекст рисования один раз
+
+    app.loader("../data/3d/cube.json");
     // 🔁 Запускаем цикл, который реагирует на события И выполняет свою логику
     MSG msg = {};
     while (true) {
@@ -99,7 +101,7 @@ int main() {
     app.setLinuxDisplay(display, window)
     app.initGraphics();        // ✅ создать контекст рисования один раз
     // 🔹 Обрабатываем события
-    
+    app.loader("../data/3d/cube.json");
     while (true) {
         // 🔁 Обрабатываем события (если есть)
         while (XPending(display)) {

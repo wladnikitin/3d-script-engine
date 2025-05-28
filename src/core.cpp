@@ -71,6 +71,16 @@ void App::update() {
                 lastModelToRender = name;
                 shouldDraw = true;
                 safePrint("Rotated the model: " + name);
+            } else if (cmd == "draw" && models.count(name)) {
+                // ➜ Сдвиг модели по трём координатам
+                for (auto& point : models[name].points) {
+                    point.x += rx;
+                    point.y += ry;
+                    point.z += rz;
+                }
+                lastModelToRender = name;
+                shouldDraw = true;
+                safePrint("Shifted and queued model for drawing: " + name);
             } else {
                 safePrint("Console command or model not found");
             }
@@ -91,15 +101,21 @@ void App::update() {
 }
 
 // 🔁 Перевод 3D → 2D
-Point2D App::print3Dto2D(const Point3D& p, float rx, float ry, float rz, int w, int h) {
+Point2D App::print3Dto2D(const Point3D& p, float rx, float ry, float rz, int pixelWidth, int pixelHeight) {
     Point3D r = rotateX(rotateY(rotateZ(p, rz), ry), rx);
-    float aspect = (float)w / h;
-    float x_ndc = (r.x / r.z) / aspect;
-    float y_ndc = (r.y / r.z);
-    return {
-        (int)((x_ndc + 1.0f) * 0.5f * w),
-        (int)((1.0f - y_ndc) * 0.5f * h)
-    };
+
+    if (r.z <= 0.1f) r.z = 0.1f; // чтобы избежать деления на ноль
+
+    // проекция в миллиметрах
+    float x_mm = (camera.focalLengthMM / r.z) * r.x;
+    float y_mm = (camera.focalLengthMM / r.z) * r.y;
+
+    // пересчёт в пиксели
+    float mm_to_pixels = camera.screenDPI / 25.4f;
+    int x_px = (int)((x_mm * mm_to_pixels) + pixelWidth / 2);
+    int y_px = (int)((-y_mm * mm_to_pixels) + pixelHeight / 2);
+
+    return { x_px, y_px };
 }
 
 // 🧱 Загрузка модели из JSON
