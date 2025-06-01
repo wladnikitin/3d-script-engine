@@ -1,12 +1,14 @@
 // core.cpp
 #include "core.hpp"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cmath>
 #include "json.hpp"
-#include <thread>
+
+#include <unordered_map> // или <map>
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cmath>
 #if defined(_WIN32)  // Если Windows
     #include <windows.h>
 
@@ -16,171 +18,213 @@
 #endif
 
 using json = nlohmann::json;
+using namespace std::chrono;
 
-std::mutex coutMutex;
+// глобальная переменная:
+steady_clock::time_point lastFrameTime = steady_clock::now();
 
-void safePrint(const std::string& message) {
-    std::lock_guard<std::mutex> lock(coutMutex);
-    std::cout << message << std::endl;
+#define DEG2RAD(angleDegrees) ((angleDegrees) * 3.14159265f / 180.0f)
+
+// ⚠️ Здесь создаются глобальные переменные
+int windowWidth = 640;
+int windowHeight = 480;
+
+float focalLengthMM = 50.0f; // 👁️ Человеческий глаз
+
+Camera cam; // 🔹 Здесь мы создаём саму переменную
+
+bool isFullscreen = false;
+WINDOWPLACEMENT windowPosBeforeFullscreen = { sizeof(windowPosBeforeFullscreen) };
+DWORD windowStyleBeforeFullscreen = 0;
+
+
+// 🎯 Функция для рисования 3D-точки
+void App::draw3DPoint(HDC hdc, Point3D point) {
+    float dx = point.x - cam.x;
+    float dy = point.y - cam.y;
+    float dz = point.z - cam.z;
+
+    // 📌 Поворот по горизонтали (вокруг вертикальной оси)
+    float x1 = dx * cos(DEG2RAD(-cam.horizontalAngle)) - dz * sin(DEG2RAD(-cam.horizontalAngle));
+    float z1 = dx * sin(-cam.horizontalAngle) + dz * cos(DEG2RAD(-cam.horizontalAngle));
+
+    // 📌 Поворот по вертикали (вокруг горизонтальной оси)
+    float y1 = dy * cos(DEG2RAD(-cam.verticalAngle)) - z1 * sin(DEG2RAD(-cam.verticalAngle));
+    float z2 = dy * sin(DEG2RAD(-cam.verticalAngle)) + z1 * cos(DEG2RAD(-cam.verticalAngle)); // глубина
+
+    // ⚠️ Защита от деления на ноль или "отрицательной глубины"
+    if (z2 <= 0.01f) return;
+
+    // 📐 Проекция на экран (в логических координатах)
+    float screenX = x1 / z2;
+    float screenY = y1 / z2;
+
+    // 🎯 Перевод в пиксели
+    int pixelX = static_cast<int>(screenX * app.scale + windowWidth / 2);
+    int pixelY = static_cast<int>(-screenY * app.scale + windowHeight / 2);
+
+    // 🖌️ Рисуем пиксель
+    SetPixel(hdc, pixelX, pixelY, RGB(point.r, point.g, point.b));
 }
 
-// 🔁 Повороты по осям
-Point3D rotateX(Point3D p, float t) {
-    float c = cos(t), s = sin(t);
-    return { p.x, p.y * c - p.z * s, p.y * s + p.z * c };
-}
-Point3D rotateY(Point3D p, float t) {
-    float c = cos(t), s = sin(t);
-    return { p.x * c + p.z * s, p.y, -p.x * s + p.z * c };
-}
-Point3D rotateZ(Point3D p, float t) {
-    float c = cos(t), s = sin(t);
-    return { p.x * c - p.y * s, p.x * s + p.y * c, p.z };
-}
 
-// ⌨️ Слушает команды
-void App::waitForLine() {
-    while (running) {
-        std::string line;
-        std::cout << "> ";
-        std::getline(std::cin, line);
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_DESTROY:
+            PostQuitMessage(0); // Завершаем программу
+            return 0;
 
-        std::lock_guard<std::mutex> lock(commandMutex);
-        pendingCommand = line;
-        hasNewCommand = true;
-    }
-}
+        case WM_KEYDOWN:
+            if (wParam == VK_F11) {
+                if (!isFullscreen) {
+                    // Сохраняем стиль и позицию
+                    windowStyleBeforeFullscreen = GetWindowLong(hwnd, GWL_STYLE);
+                    GetWindowPlacement(hwnd, &windowPosBeforeFullscreen);
 
-// 🖼️ Рисует модель при получении команды
-void App::update() {
-    bool shouldDraw = false;
-    std::string modelToDraw;
-    float rx = 0, ry = 0, rz = 0;
+                    // Убираем рамки
+                    SetWindowLong(hwnd, GWL_STYLE, windowStyleBeforeFullscreen & ~WS_OVERLAPPEDWINDOW);
 
-    {
-        std::lock_guard<std::mutex> lock(commandMutex);
-        if (hasNewCommand) {
-            std::istringstream iss(pendingCommand);
-            std::string cmd, name;
-            iss >> cmd >> name >> rx >> ry >> rz;
+                    // Получаем размеры всего экрана
+                    MONITORINFO mi = { sizeof(mi) };
+                    if (GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+                        SetWindowPos(hwnd, HWND_TOP,
+                            mi.rcMonitor.left, mi.rcMonitor.top,
+                            mi.rcMonitor.right - mi.rcMonitor.left,
+                            mi.rcMonitor.bottom - mi.rcMonitor.top,
+                            SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                    }
 
-            if (cmd == "rotate" && models.count(name)) {
-                models[name].rx += rx;
-                models[name].ry += ry;
-                models[name].rz += rz;
-                lastModelToRender = name;
-                shouldDraw = true;
-                safePrint("Rotated the model: " + name);
-            } else if (cmd == "draw" && models.count(name)) {
-                // ➜ Сдвиг модели по трём координатам
-                for (auto& point : models[name].points) {
-                    point.x += rx;
-                    point.y += ry;
-                    point.z += rz;
+                    isFullscreen = true;
+                } else {
+                    // Возврат в оконный режим
+                    SetWindowLong(hwnd, GWL_STYLE, windowStyleBeforeFullscreen);
+                    SetWindowPlacement(hwnd, &windowPosBeforeFullscreen);
+                    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+                    isFullscreen = false;
                 }
-                lastModelToRender = name;
-                shouldDraw = true;
-                safePrint("Shifted and queued model for drawing: " + name);
-            } else {
-                safePrint("Console command or model not found");
             }
-            hasNewCommand = false;
+            break;
+        
+        case WM_SIZE:
+            windowWidth  = LOWORD(lParam);
+            windowHeight = HIWORD(lParam);
+            break;
+
+        case WM_DPICHANGED: {
+            // lParam — это указатель на RECT с новой рекомендованной областью окна
+            RECT* suggestedRect = (RECT*)lParam;
+
+            // Можешь переместить окно в рекомендуемую область
+            SetWindowPos(hwnd,
+                NULL,
+                suggestedRect->left,
+                suggestedRect->top,
+                suggestedRect->right - suggestedRect->left,
+                suggestedRect->bottom - suggestedRect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+
+            // Получи новый DPI
+            int dpiX = LOWORD(wParam);
+            int dpiY = HIWORD(wParam);
+
+            // Обнови масштаб (если хочешь)
+            int actualDPI = dpiX; // Обычно dpiX = dpiY, берём любой
+            app.setDPI(actualDPI);
+
+            break;
         }
+
     }
 
-    if (shouldDraw && models.count(lastModelToRender)) {
-        const auto& model = models[lastModelToRender];
-        safePrint("We are drawing: " + lastModelToRender + " (" + std::to_string(model.points.size()) + " points) now");
-
-        for (const Point3D& p : model.points) {
-            Point2D screen = print3Dto2D(p, model.rx, model.ry, model.rz, 640, 480);
-            drawPixelCrossPlatform(screen.x, screen.y);
-        }
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    return DefWindowProc(hwnd, msg, wParam, lParam); // Остальные сообщения — Windows сама
 }
 
-// 🔁 Перевод 3D → 2D
-Point2D App::print3Dto2D(const Point3D& p, float rx, float ry, float rz, int pixelWidth, int pixelHeight) {
-    Point3D r = rotateX(rotateY(rotateZ(p, rz), ry), rx);
-
-    if (r.z <= 0.1f) r.z = 0.1f; // чтобы избежать деления на ноль
-
-    // проекция в миллиметрах
-    float x_mm = (camera.focalLengthMM / r.z) * r.x;
-    float y_mm = (camera.focalLengthMM / r.z) * r.y;
-
-    // пересчёт в пиксели
-    float mm_to_pixels = camera.screenDPI / 25.4f;
-    int x_px = (int)((x_mm * mm_to_pixels) + pixelWidth / 2);
-    int y_px = (int)((-y_mm * mm_to_pixels) + pixelHeight / 2);
-
-    return { x_px, y_px };
+void App::setDPI(int dpiValue) {
+    dpi = dpiValue;
+    scale = dpi / 2.54f * focalLengthMM / 10.0f;
 }
 
-// 🧱 Загрузка модели из JSON
-void App::loader(const std::string& path) {
+// ───── Загрузчик модели ─────
+
+Model App::loader(const std::string& path) {
     std::ifstream file(path);
-    if (!file.is_open()) return;
+    if (!file) {
+        std::cerr << "Failed to open file: " << path << '\n';
+        return Model{}; // ← Вернёт "пустую" модель
+    }
 
     json j;
     file >> j;
 
-    Model m;
-    std::string name = j.value("name", "Unnamed");
-    for (const auto& pt : j["points"]) {
-        m.points.push_back({
-            pt.value("x", 0.0f),
-            pt.value("y", 0.0f),
-            pt.value("z", 0.0f)
-        });
+    Model model;
+    model.modelName = j["modelName"];
+    model.castShadow = j["castShadow"];
+
+    for (const auto& jPoly : j["polygons"]) {
+        Polygon3D poly;
+        poly.roughness = jPoly["roughness"];
+        poly.metallic = jPoly["metallic"];
+        poly.lightTarget = jPoly["lightTarget"];
+        poly.lightType = jPoly["lightType"];
+
+        for (const auto& jLine : jPoly["lines"]) {
+            Line line;
+
+            for (const auto& jPoint : jLine["points"]) {
+                Point3D p;
+                p.x = jPoint["x"];
+                p.y = jPoint["y"];
+                p.z = jPoint["z"];
+                p.r = jPoint["r"];
+                p.g = jPoint["g"];
+                p.b = jPoint["b"];
+                p.opacity = jPoint["opacity"];
+                p.lightIntensity = jPoint["lightIntensity"];
+                line.points.push_back(p);
+            }
+
+            poly.lines.push_back(line);
+        }
+
+        model.polygons.push_back(poly);
     }
 
-    models[name] = m;
-    safePrint("Model loaded: " + name);
+    // ───── Отладочный вывод ─────
+    std::cout << "Model loaded: " << model.modelName << "\n";
+    std::cout << "Shadows: " << (model.castShadow ? "enabled" : "disabled") << "\n";
+    std::cout << "Polygon count: " << model.polygons.size() << "\n";
+
+    for (size_t i = 0; i < model.polygons.size(); ++i) {
+        const auto& p = model.polygons[i];
+        std::cout << "  Polygon " << i << ": lines = " << p.lines.size()
+                << ", roughness = " << p.roughness
+                << ", metallic = " << p.metallic
+                << ", lightType = " << p.lightType << "\n";
+    }
+    return model;
 }
 
-#ifdef _WIN32
-void App::setHWND(HWND h) {
-    hwnd = h;
-}
-void App::initGraphics() {
-    if (hwnd && !hdc)
-        hdc = GetDC(hwnd);
-}
-void App::cleanup() {
-    if (hdc && hwnd) {
-        ReleaseDC(hwnd, hdc);
-        hdc = nullptr;
-    }
-}
-#endif
+void App::clear(HDC hdc) {
+    //HDC hdc = GetDC(hwnd);
+    RECT rect = { 0, 0, windowWidth, windowHeight };
 
-#ifdef __linux__
-void App::setLinuxDisplay(Display* d, Window w) {
-    display = d;
-    window = w;
-}
-void App::initGraphics() {
-    if (display && window && !gc)
-        gc = XCreateGC(display, window, 0, 0);
-}
-void App::cleanup() {
-    if (display && gc) {
-        XFreeGC(display, gc);
-        gc = nullptr;
-    }
-}
-#endif
+    HBRUSH blackBrush = CreateSolidBrush(RGB(0, 0, 0));
+    FillRect(hdc, &rect, blackBrush);
+    DeleteObject(blackBrush);
 
-void App::drawPixelCrossPlatform(int x, int y) {
-#ifdef _WIN32
-    if (hdc) SetPixel(hdc, x, y, RGB(255, 0, 0));
-#elif defined(__linux__)
-    if (display && gc) {
-        XSetForeground(display, gc, 0xFF0000);
-        XDrawPoint(display, window, gc, x, y);
-        XFlush(display);
-    }
-#endif
+    //ReleaseDC(hwnd, hdc);
+}
+
+void App::animate(Animation animation) {
+    // вычисляем прошедшее время
+    steady_clock::time_point now = steady_clock::now();
+    float deltaTime = duration<float>(now - lastFrameTime).count();
+    lastFrameTime = now;
+
+    // 🎯 Пример: движение объекта
+    //object.x += objectSpeed * deltaTime;
+
+    // остальной код...
 }

@@ -1,13 +1,22 @@
 {
-  "name": "cube",
-  "points": [
-    { "x": -60, "y": -60, "z": -60 },
-    { "x": -60, "y": -60, "z":  60 },
-    { "x": -60, "y":  60, "z": -60 },
-    { "x": -60, "y":  60, "z":  60 },
-    { "x":  60, "y": -60, "z": -60 },
-    { "x":  60, "y": -60, "z":  60 },
-    { "x":  60, "y":  60, "z": -60 },
-    { "x":  60, "y":  60, "z":  60 }
+  "modelName": "SimpleCubeCorners",
+  "castShadow": false,
+  "polygons": [
+    {
+      "roughness": 0.0,
+      "metallic": 0.0,
+      "lightTarget": "none",
+      "lightType": "normal",
+      "lines": [
+        { "points": [ { "x": 0,   "y": 0,   "z": 0,   "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 100, "y": 0,   "z": 0,   "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 0,   "y": 100, "z": 0,   "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 100, "y": 100, "z": 0,   "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 0,   "y": 0,   "z": 100, "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 100, "y": 0,   "z": 100, "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 0,   "y": 100, "z": 100, "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] },
+        { "points": [ { "x": 100, "y": 100, "z": 100, "r": 255, "g": 255, "b": 255, "opacity": 1.0, "lightIntensity": 0.0 } ] }
+      ]
+    }
   ]
 }

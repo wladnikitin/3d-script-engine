@@ -1,32 +1,29 @@
 #include <iostream>
-#include <thread>
+//#include <thread>
 #include "core.hpp"
 
 #if defined(_WIN32)  // Если Windows
     #include <windows.h>
 
 #elif defined(__linux__)  // Если Linux
-    #include <X11/Xlib.h>
+    //#include <X11/Xlib.h>
+    #error "This operating system is not supported yet."
 
 #else
     #error "This operating system is not supported yet."
 #endif
 
+App app;
 int main() {
-    App app;
+    
 #if defined(_WIN32)
     // 🔹 Название класса окна
     const wchar_t CLASS_NAME[] = L"MyWinWindowClass";
 
     // 🔹 Структура, описывающая поведение окна
     WNDCLASS wc = {};
-    wc.lpfnWndProc = [](HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
-        if (msg == WM_DESTROY) {           // Если окно закрывается
-            PostQuitMessage(0);            // Посылаем сообщение: "завершить программу"
-            return 0;
-        }
-        return DefWindowProc(hwnd, msg, wParam, lParam); // Обработка прочих сообщений
-    };
+    wc.lpfnWndProc = WndProc;
+
     wc.hInstance = GetModuleHandle(NULL);  // 🔹 Получаем текущий процесс
     wc.lpszClassName = CLASS_NAME;         // 🔹 Назначаем имя класса
     RegisterClass(&wc);                    // 🔹 Регистрируем класс окна в системе
@@ -43,11 +40,27 @@ int main() {
 
     ShowWindow(hwnd, SW_SHOW);     // 🔹 Показываем окно на экране
 
-    std::thread inputThread(&App::waitForLine, &app);
-    app.setHWND(hwnd);         // или app.setLinuxDisplay(...)
-    app.initGraphics();        // ✅ создать контекст рисования один раз
+    HDC screen = GetDC(hwnd); // лучше брать dpi именно из окна, а не всего экрана
+    int dpi = GetDeviceCaps(screen, LOGPIXELSX);
+    ReleaseDC(hwnd, screen);
 
-    app.loader("../data/3d/cube.json");
+    //std::thread inputThread(&App:: , &app);
+
+    app.scale = dpi / 2.54f * focalLengthMM / 10.0f; // считается один раз в начале программы
+
+    std::cout << "Camera: (" << cam.x << ", " << cam.y << ", " << cam.z << "), horizontal angle: "<< cam.horizontalAngle << ", vertical angle: "<< cam.verticalAngle << "\n";
+    Model model = app.loader("../data/3d/cube.json");
+    HDC hdc = GetDC(hwnd);         // 🔹 Получаем доступ к окну
+    for (const auto& polygon : model.polygons) {
+        for (const auto& line : polygon.lines) {
+            for (const auto& point : line.points) {
+                app.draw3DPoint(hdc, point);       // 🔹 Рисуем что-то
+                std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+            }
+        }
+    }
+    ReleaseDC(hwnd, hdc);          // 🔹 Отпускаем, освобождаем ресурс
+
     // 🔁 Запускаем цикл, который реагирует на события И выполняет свою логику
     MSG msg = {};
     while (true) {
@@ -57,12 +70,10 @@ int main() {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         } else {
-            app.update();
+            // здесь бесконечно что-то выполняется
         }
     }
-    app.cleanup();             // 🔒 освободить контекст перед выходом
-    app.running = false;     // ⛔ Скажи: хватит слушать команды
-    inputThread.join();      // 🧵 Дождись завершения waitForLine()
+    //inputThread.join();      // 🧵 Дождись завершения waitForLine()
 
 
 #elif defined(__linux__)

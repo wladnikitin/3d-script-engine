@@ -1,89 +1,79 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <map>
-#include <thread>
-#include <mutex>
+#include <unordered_map> // или <map>
 
 #if defined(_WIN32)
-    #include <windows.h> // 👈 ВОТ СЮДА
+    #include <windows.h>
+
+    LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
 
 #ifdef __linux__
     #include <X11/Xlib.h>
 #endif
 
-struct Point2D {
-    int x, y;
+
+// 📌 Глобальные переменные — доступны во всех файлах, но создаются один раз
+extern int windowWidth;
+extern int windowHeight;
+
+extern float focalLengthMM;
+
+struct Animation {
+    std::string name; // имя анимации
+
+    // список параметров: вектор из пар ключ-значение
+    std::vector<std::pair<std::string, float>> parameters;
 };
 
 struct Point3D {
-    float x, y, z;
+    float x, y, z;       // координаты в см
+    uint8_t r, g, b;     // Цвет
+    float opacity;       // 0.0 — прозрачный, 1.0 — непрозрачный
+    float lightIntensity;// 0.0 — тьма, 1.0 — ярко
+};
+
+struct Line {
+    std::vector<Point3D> points; // Обычно 2 точки, но может быть и одна
+};
+
+struct Polygon3D {
+    float roughness;
+    float metallic;
+    std::string lightTarget;
+    std::string lightType;
+    std::vector<Line> lines;
 };
 
 struct Model {
-    std::vector<Point3D> points;
-    float rx = 0, ry = 0, rz = 0; // углы поворота
+    std::string modelName;
+    bool castShadow;
+    std::vector<Polygon3D> polygons;
 };
 
 struct Camera {
-    // 📍 Позиция камеры в мировой системе координат (в миллиметрах)
-    Point3D position = {0.0f, 0.0f, 0.0f};
+    float x = 50.0f;  // Положение камеры по X
+    float y = 50.0f;  // Положение камеры по Y
+    float z = -200.0f;  // Положение камеры по Z (например, стоит позади центра сцены)
 
-    // 🔁 Углы поворота камеры (в радианах): yaw, pitch, roll
-    float yaw = 0.0f;   // поворот влево/вправо вокруг оси Y
-    float pitch = 0.0f; // вверх/вниз вокруг оси X
-    float roll = 0.0f;  // наклон головы вокруг оси Z
-
-    // 🔭 Характеристики объектива
-    float focalLengthMM = 50.0f; // фокусное расстояние в мм
-    float sensorWidthMM = 36.0f;  // ширина сенсора (типичная full-frame камера)
-    float sensorHeightMM = 24.0f; // высота сенсора
-
-    // 🖥️ Параметры экрана
-    float screenDPI = 96.0f; // разрешение экрана (точек на дюйм)
+    float horizontalAngle = 0.0f; // Поворот влево-вправо (в радианах)
+    float verticalAngle = 0.0f;   // Поворот вверх-вниз (в радианах)
 };
+extern Camera cam;  // 🔹 Объявляем, что переменная будет где-то создана
 
 class App {
 public:
-    Camera camera;
-    std::atomic<bool> running = true;
+    int dpi = 96;
+    float scale = 1.0f;
 
-    void update();                          // 🔁 Фоновая отрисовка
-    void waitForLine();                     // ⌨️ Ожидает команду
-    void loader(const std::string& path);   // 📦 Загрузка модели
-
-    Point2D print3Dto2D(const Point3D& p, float rx, float ry, float rz, int w, int h);
-    void drawPixelCrossPlatform(int x, int y);
-
-    // ⬇️ Новое: инициализация и очистка графического контекста
-    void initGraphics();                    // 🎨 Один раз создаёт графику
-    void cleanup();                         // ❌ Освобождает ресурсы
-
-#ifdef _WIN32
-    void setHWND(HWND h);                   // Windows: передаём дескриптор окна
-#endif
-
-#ifdef __linux__
-    void setLinuxDisplay(Display* d, Window w); // Linux: дисплей и окно
-#endif
+    void setDPI(int dpiValue); // функция для установки dpi
+    Model loader(const std::string& path);   // 📦 Загрузка модели
+    void draw3DPoint(HDC hdc, Point3D point);       // 🔹 Рисуем что-то
+    void clear(HDC hdc);       // стереть всё
+    void animate(Animation animation);
 
 private:
-    std::map<std::string, Model> models;    // 💾 все модели
-    std::string lastModelToRender;          // имя модели для отрисовки
 
-    std::mutex commandMutex;
-    std::string pendingCommand;
-    bool hasNewCommand = false;
-
-#ifdef _WIN32
-    HWND hwnd = nullptr;
-    HDC hdc = nullptr;                      // 🎨 Контекст рисования (Windows)
-#endif
-
-#ifdef __linux__
-    Display* display = nullptr;
-    Window window;
-    GC gc = 0;                              // 🎨 Графический контекст (Linux)
-#endif
 };
+extern App app;
