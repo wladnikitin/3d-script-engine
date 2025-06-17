@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 //#include <thread>
 #include "core.hpp"
 
@@ -13,9 +14,21 @@
     #error "This operating system is not supported yet."
 #endif
 
+std::string baseDir;
+std::string getExecutableDir() {
+    char buffer[MAX_PATH];
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    std::filesystem::path exePath(buffer);
+    return exePath.parent_path().string();
+}
+
 App app;
 int main() {
-    
+baseDir = getExecutableDir(); // = путь до папки Debug
+std::filesystem::path base = std::filesystem::path(baseDir).parent_path().parent_path(); // ⬆⬆
+std::filesystem::path cameraPath = base / "data" / "camera" / "target" / "camera.txt";
+std::filesystem::path modelPath  = base / "data" / "3d" / "cube.json";
+
 #if defined(_WIN32)
     // 🔹 Название класса окна
     const wchar_t CLASS_NAME[] = L"MyWinWindowClass";
@@ -47,9 +60,9 @@ int main() {
     //std::thread inputThread(&App:: , &app);
 
     app.scale = dpi / 2.54f * focalLengthMM / 10.0f; // считается один раз в начале программы
-    app.loadCamera("../data/camera/target/camera.txt");
+    app.loadCamera(cameraPath.string());
     std::cout << "Camera: (" << cam.x << ", " << cam.y << ", " << cam.z << "), horizontal angle: "<< cam.horizontalAngle << ", vertical angle: "<< cam.verticalAngle << "\n";
-    Model model = app.loader("../data/3d/cube.json");
+   Model model = app.loader(modelPath.string());
     HDC hdc = GetDC(hwnd);         // 🔹 Получаем доступ к окну
     for (const auto& polygon : model.polygons) {
         for (const auto& line : polygon.lines) {

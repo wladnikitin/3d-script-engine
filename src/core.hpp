@@ -15,6 +15,7 @@
 
 
 // 📌 Глобальные переменные — доступны во всех файлах, но создаются один раз
+extern std::string baseDir;  // Глобальная переменная: путь к .exe
 extern int windowWidth;
 extern int windowHeight;
 
