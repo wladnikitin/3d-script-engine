@@ -47,7 +47,7 @@ int main() {
     //std::thread inputThread(&App:: , &app);
 
     app.scale = dpi / 2.54f * focalLengthMM / 10.0f; // считается один раз в начале программы
-
+    app.loadCamera("../data/camera/target/camera.txt");
     std::cout << "Camera: (" << cam.x << ", " << cam.y << ", " << cam.z << "), horizontal angle: "<< cam.horizontalAngle << ", vertical angle: "<< cam.verticalAngle << "\n";
     Model model = app.loader("../data/3d/cube.json");
     HDC hdc = GetDC(hwnd);         // 🔹 Получаем доступ к окну

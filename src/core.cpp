@@ -4,7 +4,9 @@
 
 #include <unordered_map> // или <map>
 #include <chrono>
+#include <iostream>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -227,4 +229,34 @@ void App::animate(Animation animation) {
     //object.x += objectSpeed * deltaTime;
 
     // остальной код...
+}
+
+void App::loadCamera(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file) {
+        std::cerr << "Error opening file: " << filename << "\n";
+        return;
+    }
+
+    std::string line;
+    std::getline(file, line); // читаем строку из файла
+
+    std::replace(line.begin(), line.end(), ';', ' '); // заменим ; на пробелы
+
+    std::istringstream iss(line);
+    std::string temp;
+
+    while (iss >> temp) {
+        if (temp == "x-coordinate:")      iss >> cam.x;
+        else if (temp == "y-coordinate:") iss >> cam.y;
+        else if (temp == "z-coordinate:") iss >> cam.z;
+        else if (temp == "horizontal") {
+            iss >> temp; // "angle:"
+            iss >> cam.horizontalAngle;
+        }
+        else if (temp == "vertical") {
+            iss >> temp; // "angle:"
+            iss >> cam.verticalAngle;
+        }
+    }
 }

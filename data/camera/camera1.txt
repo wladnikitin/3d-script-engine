@@ -1,0 +1,1 @@
+x-coordinate: 10.0; y-coordinate: 30.0; z-coordinate: -180.0; horizontal angle: 1.0 degrees; vertical angle: 0.0 degrees

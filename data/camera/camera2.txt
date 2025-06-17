@@ -1,0 +1,1 @@
+x-coordinate: 49.83; y-coordinate: 51.27; z-coordinate: -198.94; horizontal angle: -1.3 degrees; vertical angle: 4.7 degrees

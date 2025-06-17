@@ -53,12 +53,12 @@ struct Model {
 };
 
 struct Camera {
-    float x = 50.0f;  // Положение камеры по X
-    float y = 50.0f;  // Положение камеры по Y
-    float z = -200.0f;  // Положение камеры по Z (например, стоит позади центра сцены)
+    float x;  // Положение камеры по X
+    float y;  // Положение камеры по Y
+    float z;  // Положение камеры по Z (например, стоит позади центра сцены)
 
-    float horizontalAngle = 0.0f; // Поворот влево-вправо (в радианах)
-    float verticalAngle = 0.0f;   // Поворот вверх-вниз (в радианах)
+    float horizontalAngle; // Поворот влево-вправо (в радианах)
+    float verticalAngle;   // Поворот вверх-вниз (в радианах)
 };
 extern Camera cam;  // 🔹 Объявляем, что переменная будет где-то создана
 
@@ -67,6 +67,7 @@ public:
     int dpi = 96;
     float scale = 1.0f;
 
+    void loadCamera(const std::string& filename);
     void setDPI(int dpiValue); // функция для установки dpi
     Model loader(const std::string& path);   // 📦 Загрузка модели
     void draw3DPoint(HDC hdc, Point3D point);       // 🔹 Рисуем что-то
