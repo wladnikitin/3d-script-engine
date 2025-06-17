@@ -52,6 +52,7 @@ struct Model {
     bool castShadow;
     std::vector<Polygon3D> polygons;
 };
+extern Model model;  // 🔹 Объявляем, что переменная будет где-то создана
 
 struct Camera {
     float x;  // Положение камеры по X

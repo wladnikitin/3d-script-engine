@@ -59,20 +59,14 @@ std::filesystem::path modelPath  = base / "data" / "3d" / "cube.json";
 
     //std::thread inputThread(&App:: , &app);
 
+    if (dpi <= 0) dpi = 96;
     app.scale = dpi / 2.54f * focalLengthMM / 10.0f; // считается один раз в начале программы
+    std::cout << "dpi = " << dpi << ", scale = " << app.scale << "\n";
     app.loadCamera(cameraPath.string());
     std::cout << "Camera: (" << cam.x << ", " << cam.y << ", " << cam.z << "), horizontal angle: "<< cam.horizontalAngle << ", vertical angle: "<< cam.verticalAngle << "\n";
-   Model model = app.loader(modelPath.string());
-    HDC hdc = GetDC(hwnd);         // 🔹 Получаем доступ к окну
-    for (const auto& polygon : model.polygons) {
-        for (const auto& line : polygon.lines) {
-            for (const auto& point : line.points) {
-                app.draw3DPoint(hdc, point);       // 🔹 Рисуем что-то
-                std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
-            }
-        }
-    }
-    ReleaseDC(hwnd, hdc);          // 🔹 Отпускаем, освобождаем ресурс
+    model = app.loader(modelPath.string());
+    InvalidateRect(hwnd, NULL, TRUE); // метим как нуждающееся в обновлении
+    UpdateWindow(hwnd);               // сразу вызываем WM_PAINT
 
     // 🔁 Запускаем цикл, который реагирует на события И выполняет свою логику
     MSG msg = {};

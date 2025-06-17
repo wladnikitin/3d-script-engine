@@ -34,6 +34,7 @@ int windowHeight = 480;
 float focalLengthMM = 50.0f; // 👁️ Человеческий глаз
 
 Camera cam; // 🔹 Здесь мы создаём саму переменную
+Model model;;
 
 bool isFullscreen = false;
 WINDOWPLACEMENT windowPosBeforeFullscreen = { sizeof(windowPosBeforeFullscreen) };
@@ -67,11 +68,32 @@ void App::draw3DPoint(HDC hdc, Point3D point) {
 
     // 🖌️ Рисуем пиксель
     SetPixel(hdc, pixelX, pixelY, RGB(point.r, point.g, point.b));
+    SetPixel(hdc, pixelX+1, pixelY, RGB(point.r, point.g, point.b));
+    SetPixel(hdc, pixelX, pixelY+1, RGB(point.r, point.g, point.b));
 }
 
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+
+            app.clear(hdc);
+
+            for (const auto& polygon : model.polygons) {
+                for (const auto& line : polygon.lines) {
+                    for (const auto& point : line.points) {
+                        app.draw3DPoint(hdc, point);
+                        std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")\n";
+                    }
+                }
+            }
+
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+
         case WM_DESTROY:
             PostQuitMessage(0); // Завершаем программу
             return 0;
